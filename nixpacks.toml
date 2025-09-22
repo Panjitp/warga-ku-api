@@ -2,7 +2,7 @@
 
 [phases.setup]
 # Minta Nixpacks untuk menyediakan PHP 8.3 dan library yang dibutuhkan
-nixPkgs = ["php83", "php83Packages.composer", "libjpeg", "libpng", "freetype", "linux-headers"]
+nixPkgs = ["php83", "php83Packages.composer", "libjpeg", "libpng", "freetype", "linux.headers"]
 
 [phases.install]
 # Perintah untuk menginstal dependensi composer
