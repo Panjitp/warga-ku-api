@@ -1,36 +1,40 @@
-# Gunakan image resmi dari Docker yang sudah ada PHP 8.3 + Server Apache
-FROM php:8.3-apache
+# Tahap 1: Builder - Menginstal dependensi PHP
+FROM composer:2.7 as builder
 
-# Instal semua library sistem yang dibutuhkan untuk ekstensi PHP Laravel
-RUN apt-get update && apt-get install -y \
-    git \
-    unzip \
-    libzip-dev \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
 
-# Instal ekstensi-ekstensi PHP yang dibutuhkan oleh Laravel
-RUN docker-php-ext-install pdo pdo_mysql gd zip sockets
+# Instal ekstensi yang dibutuhkan
+RUN apk add --no-cache libpng-dev libjpeg-turbo-dev freetype-dev libzip-dev linux-headers \
+    && docker-php-ext-install gd zip sockets pdo pdo_mysql
 
-# Instal Composer (manajer paket PHP)
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Atur direktori kerja utama
-WORKDIR /var/www/html
-
-# Salin semua file proyek Anda ke dalam container
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-interaction --optimize-autoloader
 COPY . .
 
-# Instal semua dependensi dari composer.json
-RUN composer install --no-dev --no-interaction --optimize-autoloader
+# ---------------------------------------------------------------------
 
-# Atur kepemilikan file agar Laravel bisa menulis ke folder storage
+# Tahap 2: Final - Menggabungkan Nginx dan PHP-FPM
+FROM php:8.3-fpm-alpine
+
+# Instal Nginx
+RUN apk add --no-cache nginx
+
+# Salin file konfigurasi Nginx yang sudah kita buat
+COPY nginx.conf /etc/nginx/http.d/default.conf
+
+WORKDIR /var/www/html
+
+# Salin file aplikasi dari tahap 'builder'
+COPY --from=builder /app .
+
+# Atur kepemilikan file
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# =================== PERBAIKAN PENTING DI SINI ===================
-# Konfigurasi Apache untuk menggunakan folder /public sebagai DocumentRoot
-RUN sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf
-RUN a2enmod rewrite
-# ================================================================
+# Buat file script untuk menjalankan kedua layanan
+RUN echo '#!/bin/sh' > /start.sh && \
+    echo 'php-fpm &' >> /start.sh && \
+    echo 'nginx -g "daemon off;"' >> /start.sh && \
+    chmod +x /start.sh
+
+EXPOSE 8080
+CMD ["/start.sh"]
