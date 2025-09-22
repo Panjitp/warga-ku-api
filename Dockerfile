@@ -4,6 +4,12 @@ FROM composer:2.7 as builder
 
 WORKDIR /app
 
+# =================== TAMBAHAN PENTING ===================
+# Instal dependensi sistem yang dibutuhkan oleh ekstensi gd, lalu instal ekstensinya
+RUN apk add --no-cache libpng-dev libjpeg-turbo-dev freetype-dev \
+    && docker-php-ext-install gd
+# =======================================================
+
 # Salin hanya file dependensi terlebih dahulu untuk memanfaatkan caching Docker
 COPY composer.json composer.lock ./
 
@@ -21,8 +27,10 @@ FROM php:8.3-fpm-alpine as final
 
 WORKDIR /app
 
-# Instal ekstensi PHP yang umum dibutuhkan Laravel
-RUN docker-php-ext-install pdo pdo_mysql sockets
+# Instal ekstensi PHP yang dibutuhkan di lingkungan produksi
+# Pastikan ekstensi yang sama (gd) juga diinstal di sini
+RUN apk add --no-cache libpng-dev libjpeg-turbo-dev freetype-dev \
+    && docker-php-ext-install pdo pdo_mysql sockets gd
 
 # Salin file aplikasi DAN folder vendor dari tahap 'builder'
 COPY --from=builder /app .
