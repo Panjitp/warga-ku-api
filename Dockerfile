@@ -1,42 +1,37 @@
-# Tahap 1: Builder - Menginstal dependensi PHP
-FROM composer:2.7 as builder
+# Gunakan image resmi dari Docker yang sudah ada PHP 8.3 + Server Apache
+FROM php:8.3-apache
 
-WORKDIR /app
+# Instal semua library sistem yang dibutuhkan untuk ekstensi PHP Laravel
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libzip-dev \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Instal ekstensi yang dibutuhkan
-RUN apk add --no-cache libpng-dev libjpeg-turbo-dev freetype-dev libzip-dev linux-headers \
-    && docker-php-ext-install gd zip sockets pdo pdo_mysql
+# Instal ekstensi-ekstensi PHP yang dibutuhkan oleh Laravel
+RUN docker-php-ext-install pdo pdo_mysql gd zip sockets
 
-# Salin SEMUA file aplikasi terlebih dahulu agar 'artisan' tersedia
-COPY . .
+# Instal Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Baru jalankan composer install setelah semua file ada
-RUN composer install --no-dev --no-interaction --optimize-autoloader
-
-# ---------------------------------------------------------------------
-
-# Tahap 2: Final - Menggabungkan Nginx dan PHP-FPM
-FROM php:8.3-fpm-alpine
-
-# Instal Nginx
-RUN apk add --no-cache nginx
-
-# Salin file konfigurasi Nginx yang sudah kita buat
-COPY nginx.conf /etc/nginx/http.d/default.conf
-
+# Atur direktori kerja utama
 WORKDIR /var/www/html
 
-# Salin file aplikasi dari tahap 'builder'
-COPY --from=builder /app .
+# Salin semua file proyek Anda ke dalam container
+COPY . .
 
-# Atur kepemilikan file
+# Instal semua dependensi dari composer.json
+RUN composer install --no-dev --no-interaction --optimize-autoloader
+
+# Atur kepemilikan file agar Laravel bisa menulis ke folder storage
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Buat file script untuk menjalankan kedua layanan
-RUN echo '#!/bin/sh' > /start.sh && \
-    echo 'php-fpm &' >> /start.sh && \
-    echo 'nginx -g "daemon off;"' >> /start.sh && \
-    chmod +x /start.sh
+# Konfigurasi Apache untuk mengarah ke folder /public Laravel
+RUN a2enmod rewrite \
+    && sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf
 
-EXPOSE 8080
-CMD ["/start.sh"]
+# === TAMBAHAN PENTING UNTUK MENCEGAH TIMEOUT ===
+RUN echo "Timeout 300" >> /etc/apache2/apache2.conf
