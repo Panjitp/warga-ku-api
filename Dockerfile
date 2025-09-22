@@ -1,49 +1,19 @@
-# Gunakan image resmi dari Docker yang sudah ada PHP 8.3 + Server Apache
-FROM php:8.3-apache
+# Gunakan base image yang lebih stabil dan siap produksi
+FROM thecodingmachine/php:8.3-v4-apache
 
-# Instal semua library sistem yang dibutuhkan untuk ekstensi PHP Laravel
-RUN apt-get update && apt-get install -y \
-    git \
-    unzip \
-    libzip-dev \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Salin file konfigurasi opcache yang sudah kita buat
+COPY opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
-# Instal ekstensi-ekstensi PHP yang dibutuhkan oleh Laravel
-RUN docker-php-ext-install pdo pdo_mysql gd zip sockets
-
-# Instal Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Atur direktori kerja utama
-WORKDIR /var/www/html
-
-# Salin semua file proyek Anda ke dalam container
+# Salin semua kode aplikasi ke dalam direktori kerja
 COPY . .
 
-# Instal semua dependensi dari composer.json
-RUN composer install --no-dev --no-interaction --optimize-autoloader
+# Atur kepemilikan file agar server bisa menulis ke folder yang dibutuhkan
+# Perhatikan: Nama user di image ini adalah 'docker' bukan 'www-data'
+RUN chown -R docker:docker /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Atur kepemilikan file agar Laravel bisa menulis ke folder storage
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
-
-# Konfigurasi Apache untuk mengarah ke folder /public Laravel
-RUN a2enmod rewrite \
-    && sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf
-
-# === BAGIAN FINAL YANG DIPERBAIKI UNTUK MEMBACA ENV DARI FILE ===
-# Buat script startup yang:
-# 1. Menulis semua variabel dari Railway ke file .env
-# 2. Menjalankan semua perintah perbaikan
-# 3. Memulai server
-RUN echo '#!/bin/sh' > /entrypoint.sh && \
-    echo 'printenv | grep -E "^(APP_|DB_|LOG_|MAIL_|SESSION_|QUEUE_|CACHE_)" > .env' >> /entrypoint.sh && \
-    echo 'php artisan config:clear' >> /entrypoint.sh && \
-    echo 'php artisan migrate --force' >> /entrypoint.sh && \
-    echo 'apache2-foreground' >> /entrypoint.sh && \
-    chmod +x /entrypoint.sh
-
-# Jalankan script startup yang sudah kita buat
-CMD ["/entrypoint.sh"]
+# Script startup akan dijalankan secara otomatis oleh base image ini
+# Kita hanya perlu memastikan cache config dihapus dan migrasi dijalankan
+# Tambahkan perintah ini ke file composer.json di bagian "scripts" -> "post-install-cmd" jika belum ada
+# RUN composer install --no-dev --optimize-autoloader
+# RUN php artisan config:clear
+# RUN php artisan migrate --force
