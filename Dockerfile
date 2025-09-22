@@ -2,7 +2,6 @@
 FROM php:8.3-apache
 
 # Instal semua library sistem yang dibutuhkan untuk ekstensi PHP Laravel
-# Ini dilakukan dalam satu langkah agar efisien
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -30,9 +29,8 @@ RUN composer install --no-dev --no-interaction --optimize-autoloader
 # Atur kepemilikan file agar Laravel bisa menulis ke folder storage
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Konfigurasi Apache untuk mengarah ke folder /public Laravel
-RUN a2enmod rewrite \
-    && echo "<Directory /var/www/html/public>" > /etc/apache2/conf-available/laravel.conf \
-    && echo "    AllowOverride All" >> /etc/apache2/conf-available/laravel.conf \
-    && echo "</Directory>" >> /etc/apache2/conf-available/laravel.conf \
-    && a2enconf laravel
+# =================== PERBAIKAN PENTING DI SINI ===================
+# Konfigurasi Apache untuk menggunakan folder /public sebagai DocumentRoot
+RUN sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf
+RUN a2enmod rewrite
+# ================================================================
