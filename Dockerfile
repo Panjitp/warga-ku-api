@@ -33,5 +33,13 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 RUN a2enmod rewrite \
     && sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf
 
-# === TAMBAHAN PENTING UNTUK MENCEGAH TIMEOUT ===
-RUN echo "Timeout 300" >> /etc/apache2/apache2.conf
+# === BAGIAN BARU YANG AKAN MEMPERBAIKI SEMUANYA SECARA OTOMATIS ===
+# Buat script startup untuk menjalankan perintah perbaikan sebelum memulai server
+RUN echo '#!/bin/sh' > /entrypoint.sh && \
+    echo 'php artisan config:clear' >> /entrypoint.sh && \
+    echo 'php artisan migrate --force' >> /entrypoint.sh && \
+    echo 'apache2-foreground' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh
+
+# Jalankan script startup yang sudah kita buat
+CMD ["/entrypoint.sh"]
