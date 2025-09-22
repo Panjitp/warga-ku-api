@@ -33,9 +33,13 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 RUN a2enmod rewrite \
     && sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf
 
-# === BAGIAN BARU YANG AKAN MEMPERBAIKI SEMUANYA SECARA OTOMATIS ===
-# Buat script startup untuk menjalankan perintah perbaikan sebelum memulai server
+# === BAGIAN FINAL YANG DIPERBAIKI UNTUK MEMBACA ENV DARI FILE ===
+# Buat script startup yang:
+# 1. Menulis semua variabel dari Railway ke file .env
+# 2. Menjalankan semua perintah perbaikan
+# 3. Memulai server
 RUN echo '#!/bin/sh' > /entrypoint.sh && \
+    echo 'printenv | grep -E "^(APP_|DB_|LOG_|MAIL_|SESSION_|QUEUE_|CACHE_)" > .env' >> /entrypoint.sh && \
     echo 'php artisan config:clear' >> /entrypoint.sh && \
     echo 'php artisan migrate --force' >> /entrypoint.sh && \
     echo 'apache2-foreground' >> /entrypoint.sh && \
