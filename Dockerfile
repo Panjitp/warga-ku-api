@@ -7,9 +7,11 @@ WORKDIR /app
 RUN apk add --no-cache libpng-dev libjpeg-turbo-dev freetype-dev libzip-dev linux-headers \
     && docker-php-ext-install gd zip sockets pdo pdo_mysql
 
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-interaction --optimize-autoloader
+# Salin SEMUA file aplikasi terlebih dahulu agar 'artisan' tersedia
 COPY . .
+
+# Baru jalankan composer install setelah semua file ada
+RUN composer install --no-dev --no-interaction --optimize-autoloader
 
 # ---------------------------------------------------------------------
 
