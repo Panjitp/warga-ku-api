@@ -1,7 +1,0 @@
-# nixpacks.toml
-
-[phases.setup]
-nixPkgs = ["php83"]
-
-[start]
-cmd = "vendor/bin/heroku-php-apache2 public/"
