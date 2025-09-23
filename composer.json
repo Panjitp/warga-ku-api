@@ -53,7 +53,7 @@
         ],
         "post-install-cmd": [
             "php artisan config:clear",
-            "php artisan migrate --force --seed"
+            "php artisan migrate --force"
         ]
     },
     "extra": {
