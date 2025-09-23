@@ -32,3 +32,15 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 # Konfigurasi Apache untuk mengarah ke folder /public Laravel
 RUN a2enmod rewrite \
     && sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf
+
+# === SKRIP PERBAIKAN OTOMATIS FINAL (TANPA BUTUH SHELL) ===
+# Membuat skrip startup yang akan menjalankan semua perintah setup
+RUN echo '#!/bin/sh' > /entrypoint.sh && \
+    echo 'php artisan config:clear' >> /entrypoint.sh && \
+    echo 'php artisan key:generate --force' >> /entrypoint.sh && \
+    echo 'php artisan migrate --force' >> /entrypoint.sh && \
+    echo 'apache2-foreground' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh
+
+# Jalankan skrip startup yang sudah kita buat
+CMD ["/entrypoint.sh"]
