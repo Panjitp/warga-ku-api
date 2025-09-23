@@ -1,7 +1,7 @@
 # Gunakan image resmi dari Docker yang sudah ada PHP 8.3 + Server Apache
 FROM php:8.3-apache
 
-# Instal semua library sistem yang dibutuhkan sekaligus
+# Instal semua library sistem, tambahkan libpq-dev untuk PostgreSQL
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
@@ -9,10 +9,11 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Instal semua ekstensi PHP yang dibutuhkan oleh Laravel
-RUN docker-php-ext-install pdo pdo_mysql gd zip sockets
+# Instal semua ekstensi PHP, tambahkan pdo_pgsql dan hapus pdo_mysql
+RUN docker-php-ext-install pdo gd zip sockets pdo_pgsql
 
 # Instal Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -34,7 +35,6 @@ RUN a2enmod rewrite \
     && sed -ri -e 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/*.conf
 
 # === SKRIP PERBAIKAN OTOMATIS FINAL (TANPA BUTUH SHELL) ===
-# Membuat skrip startup yang akan menjalankan semua perintah setup
 RUN echo '#!/bin/sh' > /entrypoint.sh && \
     echo 'php artisan config:clear' >> /entrypoint.sh && \
     echo 'php artisan key:generate --force' >> /entrypoint.sh && \
